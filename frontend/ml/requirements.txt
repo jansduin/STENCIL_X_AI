@@ -1,0 +1,9 @@
+torch
+torchvision
+opencv-python
+numpy
+scikit-image
+onnx
+onnxruntime
+onnxruntime-training
+onnxruntime-tools

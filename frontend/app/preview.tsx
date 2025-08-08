@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, View, Text, StyleSheet } from 'react-native';
 import { CanvasProcessor } from '../src/lib/canvas';
 import { xdogPipeline } from '../src/lib/pipeline';
+import { inferWeb, loadWebModel } from '../src/ai/onnx-web';
 import { savePngWebOrRN } from '../src/lib/save';
 
 export default function Preview() {
@@ -10,6 +11,8 @@ export default function Preview() {
   const [busy, setBusy] = useState(false);
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [cfg, setCfg] = useState({sigma:1.0, k:1.6, phi:10.0, eps:-0.015, block:41, C:4, clean:60, thickness:1});
+  const [useAI, setUseAI] = useState(false);
+  const [aiReady, setAiReady] = useState(false);
   const canvasRef = useRef<any>(null);
 
   async function process() {
@@ -18,20 +21,39 @@ export default function Preview() {
     try {
       const cv = await CanvasProcessor.fromImageUri(String(uri), 512);
       const g = cv.getGrayFloat();
-      const out = xdogPipeline(g, cv.w, cv.h, cfg);
-      const url = cv.writeMonochromeToCanvas(out);
+      let url: string;
+      if (useAI && Platform.OS === 'web'){
+        try {
+          // salida IA: tensor float32 [1,1,H,W] en 0..1
+          const y = await inferWeb(g, cv.w, cv.h);
+          // binarizar suave: umbral adaptativo simple
+          const bin = new Uint8ClampedArray(cv.w*cv.h);
+          for (let i=0;i<bin.length;i++) bin[i] = y[i] > 0.5 ? 0 : 255; // líneas negras
+          url = cv.writeMonochromeToCanvas(bin);
+          setAiReady(true);
+        } catch (e){
+          console.warn('AI inference failed or model missing, fallback xDoG', e);
+          setAiReady(false);
+          const out = xdogPipeline(g, cv.w, cv.h, cfg);
+          url = cv.writeMonochromeToCanvas(out);
+        }
+      } else {
+        const out = xdogPipeline(g, cv.w, cv.h, cfg);
+        url = cv.writeMonochromeToCanvas(out);
+      }
       setDataUrl(url);
     } finally {
       setBusy(false);
     }
   }
 
-  useEffect(()=>{ process(); }, [uri, cfg]);
+  useEffect(()=>{ process(); }, [uri, cfg, useAI]);
+  useEffect(()=>{ if (Platform.OS==='web') loadWebModel().then(()=>setAiReady(true)).catch(()=>setAiReady(false)); },[]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>2) Vista previa (modo rápido sin IA)</Text>
-      <Text style={styles.tip}>Ajusta detalle/grosor/limpieza. Para “final PRO” podrás activar IA (ONNX) más adelante.</Text>
+      <Text style={styles.title}>2) Vista previa</Text>
+      <Text style={styles.tip}>xDoG rápido en local. Opcional: "Final PRO (IA)" con ONNX en tu navegador.</Text>
       <View style={{height:8}} />
       <View style={styles.row}>
         <Text>Detalle</Text>
@@ -46,6 +68,13 @@ export default function Preview() {
         {busy && <Text>Procesando…</Text>}
         {dataUrl && <img src={dataUrl} style={{width:512, height:512, background:'#fff', borderRadius:8}} />}
       </View>
+
+      {Platform.OS==='web' && (
+        <Text style={[styles.btn,{backgroundColor: useAI?'#700':'#0a7'}]}
+              onPress={()=> setUseAI(v=>!v)}>
+          {useAI? 'Desactivar Final PRO (IA)' : 'Final PRO (IA)'} {aiReady? '' : '(modelo no encontrado)'}
+        </Text>
+      )}
 
       <Text style={styles.btn}
             onPress={async()=> dataUrl && await savePngWebOrRN(dataUrl, 'stencil.png')}>

@@ -26,6 +26,7 @@ backend/uvicorn.log
 # Datasets and outputs (large/generated)
 backend/outputs/
 dataset/
+backend/uploads/
 
 # Node / React Native
 node_modules/

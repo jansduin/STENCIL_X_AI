@@ -1,0 +1,30 @@
+# FastAPI and ASGI server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Image processing
+opencv-python==4.8.1.78
+pillow==10.1.0
+
+# Deep learning
+torch==2.2.0
+torchvision==0.17.0
+
+# Payment processing
+stripe==7.8.0
+
+# Authentication and database
+firebase-admin==6.2.0
+
+# Additional dependencies
+pydantic[email]==2.5.0
+python-multipart==0.0.6
+numpy==1.26.2
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dotenv==1.0.0
+
+# Development and testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2

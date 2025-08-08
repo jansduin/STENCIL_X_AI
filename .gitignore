@@ -36,6 +36,7 @@ frontend/node_modules/
 .vscode/
 .idea/
 *.swp
+.cursor/
 
 # Cache
 .cache/
